@@ -1,0 +1,48 @@
+DMD Calibration and TI 
+
+Step 1: 
+
+-Use  highlighter slide!
+
+-upload calibration mask -> users/researcher/3DFAST-main/3DFAST-main -> upload_DMD_calibration.py
+
+-take photo with FULL Frame in ArenaView (should see dots!), re-upload if not
+
+-save photo in users/researcher/mcSIM/examples/data
+
+Step 2: 
+
+-Open Affine xform script-> users/researcher/mcSIM/examples -> calibrate_affine_xform_ATLAS10.py
+
+-Change lines for image_fname to photo from earlier (30?)
+
+-Update centers_init values 
+	in Fiji: -open photo from step 1 as well as users/reasearcher/3dfast-main/3dfast-main -> Dot_Calibration_Photo.jpg ???? -> McSIM/examples/Data -> calibration_dot_indices.png !
+		 -find center of 6 each dots in the new photo that are labeled 1-6 in the calibration photo 
+		 -update values for centers_init with these center points -> MUST BE IN CORRECT ORDER OF DOT CALIBRATION PHOTO!!! Y/X REVERSED!
+
+- run calilbrate_affine_xform_ATLAS10.py
+
+Step 3: 
+
+-Switch to real Sample!
+
+-Open users/researcher/mcSIM/examples/convert_ATLAS10_to_DMD.py
+
+-Switch save_dir variable to folder created in step 2 
+
+-Use ArenaView GUi to take photo of full sample FOV, save in users/researcher/mcSIM/examples 
+
+-Update draw_reactangle_with_drag and test_path values to the name used with the full FOV frame just taken 
+
+-Run convert_ATLAS10_to_DMD.py 
+
+-Draw box around target in CV2 GUI that pops up. 
+
+-Watch selective target illumination in ArenaView
+
+-Change ArenaView parameters and record.. or whatever !!!
+
+
+
+
