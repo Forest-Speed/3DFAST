@@ -13,6 +13,7 @@ from mcsim.expt_ctrl import dlp6500
 import numpy as np 
 from PIL import Image
 from skimage import io
+from matplotlib import pyplot as plt
 
 # Atlas10 Stuff
 from arena_api.system import system
@@ -47,13 +48,32 @@ DAC03 -> Piezo: -10-10V
 DAC04 -> Blue DMD Trig_1: 0-5V
 DAC05 -> Blue DMD Trig_2: 0-5V
 DAC06 -> Green LED: 0-5V
-DAC08 -> Blue LED: 0-5V
-DAC15 -> Python1300 Input Trig: 0-5V 
+      -> Blue LED: 0-5V
+DAC08 -> Python1300 Input Trig: 0-5V 
 
 Python1300 Pins -> Blue, line3 -> TTL in 
                    Brown, line6 -> Ground
 
 """
+
+global start_Pos, stop_Pos, flag,ix, iy, drawing, display_img, fx, fy, DMD_Height, DMD_Width
+
+ix = 0
+iy = 0
+fx = 2448
+fy = 2048
+drawing = False
+DMD_Width = 1920
+DMD_Height = 1080
+Camera_Width = 2448   # - ? 
+Camera_Height = 2048  # - ?
+
+window_width = 2000
+window_height = 1300
+
+TAB1 = "  "
+TAB2 = "    "
+
 
 ############################################################  ATLAS10 Helper Functions
 
@@ -168,6 +188,8 @@ def set_Mode_Cont_Atlas10(device):
     nodes = nodemap.get_node(['AcquisitionMode'])
     nodes['AcquisitionMode'].value = "Continuous"
 
+
+
     
     
 # TODO -> Add MultiThread Stuff !!!!!!
@@ -205,13 +227,86 @@ def Upload_SIM2_to_DMD(dmd):
      img11 = img1.astype(np.uint8)
      Upload_Arr_to_DMD(img11, dmd)  
      
-     
+   
      
 def Upload_SIM3_to_DMD(dmd):
      img = np.array(Image.open('patterns//SIM_Pat_33_bmp.bmp'))
      img1 = img/247
      img11 = img1.astype(np.uint8)
      Upload_Arr_to_DMD(img11, dmd)      
+     
+     
+def Upload_DD1_to_DMD(dmd):
+     img = np.array(Image.open('patterns//DD_Pat_11.bmp')) # DD20 for courser pattern!
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd)  
+
+def Upload_DD2_to_DMD(dmd):
+     img = np.array(Image.open('patterns//DD_Pat_22.bmp'))
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd)  
+     
+     
+def Upload_DD3_to_DMD(dmd):
+     img = np.array(Image.open('patterns//DD_Pat_33.bmp'))
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd) 
+     
+     
+     
+     
+     
+# TI Patterns!!!!!     
+def Upload_TI1_to_DMD(dmd):
+     img = np.array(Image.open('patterns//TI1.bmp'))
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd)
+     
+def Upload_TI2_to_DMD(dmd):
+     img = np.array(Image.open('patterns//TI2.bmp'))
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd)  
+
+def Upload_TI3_to_DMD(dmd):
+     img = np.array(Image.open('patterns//TI3.bmp'))
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd)
+     
+def Upload_TI4_to_DMD(dmd):
+     img = np.array(Image.open('patterns//TI4.bmp'))
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd)  
+
+def Upload_TI5_to_DMD(dmd):
+     img = np.array(Image.open('patterns//TI5.bmp'))
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd)
+     
+def Upload_TI6_to_DMD(dmd):
+     img = np.array(Image.open('patterns//TI6.bmp'))
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd)  
+
+def Upload_TI7_to_DMD(dmd):
+     img = np.array(Image.open('patterns//TI7.bmp'))
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd)
+     
+def Upload_TI8_to_DMD(dmd):
+     img = np.array(Image.open('patterns//TI8.bmp'))
+     img1 = img/247
+     img11 = img1.astype(np.uint8)
+     Upload_Arr_to_DMD(img11, dmd)  
 
     
 
@@ -234,7 +329,7 @@ def set_DMD_SIM(exposure_time_cam):
     return dmd
 
 
-###################################################### TriggerScope Helpers
+###################################################### TriggerScope-DAQ Helpers
 
 
 
@@ -324,11 +419,271 @@ def set_Python1300_Slave(camera):
     print("Python1300 slave mode: ", camera.TriggerMode.Value)
 
 
+########### TI STUFF!!!
+def test_Circle(ix, iy, fx, fy):
+
+    # Use this to find pixel mismatch with the FB pattern uploaded prior to aquisition 
+    # This is only used for calibration with the test circle, it will return offset values that will later be used for 
+    # converting rectangles into DMD masks 
+
+    dmd_ix = int(ix/2.8) 
+    dmd_iy = int(iy/2.8)
+    dmd_fx = int(fx/2.7) 
+    dmd_fy = int(fy/2.7)
+    
+    # Real Dimension for circle on DMD 
+    
+    top = 203
+    bottem = 877
+    left = 623
+    right = 1297
+    
+    #Compute DIfference: 
+    diff_top = top - dmd_iy
+    diff_left = left - dmd_ix
+    
+    print(diff_left, diff_top)
+    
+    # diff_top gives us the offset we need to add to iy and diff_left for ix
+    return diff_left, diff_top 
+
+
+# Function to convert IMX picture to DMD mask
+
+def convert_pic_to_DMD(ix, iy, fx, fy, diff_left, diff_top):
+    global DMD_Height, DMD_Width
+    
+    #AR_Mismatch_x = 285
+    
+    dmd_ix = int(ix/2.8) + diff_left 
+    dmd_iy = int(iy/2.8) + diff_top 
+    dmd_fx = int(fx/2.7) + diff_left
+    dmd_fy = int(fy/2.7) + diff_top
+    
+    all_on_arr = np.ones((DMD_Height, DMD_Width),np.uint8)
+    arr = all_on_arr
+
+    for i in range(1920):
+        if i < dmd_ix:
+            arr[:,i] = 0
+        elif i > dmd_fx:
+            arr[:,i] = 0
+
+    for j in range(1080):
+        if j < dmd_iy:
+            arr[j,:] = 0
+        elif j > dmd_fy:
+            arr[j,:] = 0
+
+   
+    plt.imshow(arr)
+    plt.show()
+    
+    # Flip cuz the DMD is actually upside down
+    arr2 = np.flipud(arr)
+
+    return arr2
+
+def draw_reactangle_with_drag(event, x, y, flags, param):
+    
+    # ix is starting x coord, it is easiest to start left and move right 
+    # iy is the starting y coord, this goes top to bottem 
+    # fx is the final x coord, this should be the right most 
+    # fy is the final y coord, this should toward bottem 
+    
+    global ix, iy, drawing, display_img, fx, fy
+    #print("Draw Time")
+    if event == cv2.EVENT_LBUTTONDOWN:
+        drawing = True
+        ix = x
+        iy = y
+        print(iy)
+       
+    elif event == cv2.EVENT_MOUSEMOVE:
+        if drawing == True:
+            img2 = cv2.imread("Try.jpg")
+            cv2.rectangle(img2, pt1=(ix,iy), pt2=(x, y),color=(255,255,255),thickness=10)
+            display_img = img2
+
+    elif event == cv2.EVENT_LBUTTONUP:
+        drawing = False
+        img2 = cv2.imread("Try.jpg")
+        cv2.rectangle(img2, pt1=(ix,iy), pt2=(x, y),color=(255,255,255),thickness=10)
+        display_img = img2
+        fx = x
+        fy = y  
+    
+    
+def calibrate_TI(device, dmd):
+    global ix, iy, drawing, display_img, fx, fy, window_width, window_height
+    
+    # Use this code with the full circle (FB) pattern on the DMD 
+    # Try to get the calibration square as close to the circle edges as possible 
+    # This must be run before the other TI scripts 
+
+    # Connect to Cam 
+    #device = create_device_from_serial_number("220600074")
+    
+    
+    
+    # TODO: Load FB Pattern directly from Python instead of using DLP GUI
+    # Connect to DMD
+    #dmd = dlp6500.dlp6500win(debug=False)
+    Upload_FB_to_DMD(dmd)
+    
+    """
+    #Setup Stream
+    #tl_stream_nodemap = device.tl_stream_nodemap
+    #tl_stream_nodemap['StreamAutoNegotiatePacketSize'].value = True
+    #tl_stream_nodemap['StreamPacketResendEnable'].value = True
+    #tl_stream_nodemap["StreamBufferHandlingMode"].value = "NewestOnly"
+    new_pixel_format = 'Mono8'
+    nodes = device.nodemap.get_node(['Width', 'Height', 'PixelFormat'])
+    nodes['PixelFormat'].value = new_pixel_format
+    
+    """
+    # Reactangle Stuff for TI
+    key = -1
+    cv2.namedWindow("Image", cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback("Image", draw_reactangle_with_drag)
+
+    # Starting Stream and Grabbing IMage 
+    device.start_stream()
+    image_buffer = device.get_buffer()
+
+
+    # Long Line to convert image to proper data format for DMD
+    nparray = np.ctypeslib.as_array(image_buffer.pdata,shape=(image_buffer.height, image_buffer.width, int(image_buffer.bits_per_pixel / 8))).reshape(image_buffer.height, image_buffer.width, int(image_buffer.bits_per_pixel / 8))
+
+    # Live Box Drawing Stuff for choosing Cells 
+    cv2.imwrite("Try.jpg", nparray)
+    display_img = cv2.imread("Try.jpg")
+    cv2.resizeWindow("Image", window_width, window_height)
+
+    # This runs until ESCAPE Key Pressed 
+    while True:
+        cv2.imshow("Image", display_img)
+        if cv2.waitKey(10) == 27:
+            break
+    # DMD mask will be displayed, Must Click X button to Continue! 
+
+    # Close out of stream (no need to record while processing)
+    device.stop_stream()  
+    cv2.destroyAllWindows()
+
+    
+
+    
+    # Stop DMD
+    dmd.start_stop_sequence("stop")
+ 
+
+
+    print("The box drawn has corners (cam dimensions) at: ",ix,iy,fx,fy)
+    diff_left, diff_top = test_Circle(ix,iy,fx,fy)
+    print("diff left: ", diff_left)
+    print("diff Top: ", diff_top)
+    
+    return diff_left, diff_top
+
+
+
+#def match_Offsets(offset_X, offset_Y, R_W, R_H, B_W, B_H
+
+
+def User_Draws_TI(d_l,d_t, device, dmd):
+
+    global ix, iy, drawing, display_img, fx, fy
+    
+    # Connect to Cam 
+    #device = create_device_from_serial_number("220600074")
+
+    #Setup Stream
+    tl_stream_nodemap = device.tl_stream_nodemap
+    nodes = device.nodemap.get_node(['Width', 'Height', 'PixelFormat'])
+
+    # Reactangle Stuff for TI
+    cv2.namedWindow("Image", cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback("Image", draw_reactangle_with_drag)
+    
+    #dmd = dlp6500.dlp6500win(debug=False)
+    #Upload_FB_to_DMD(dmd)
+    dmd.start_stop_sequence("start")
+
+    # Starting Stream and Grabbing IMage 
+    device.start_stream()
+    
+    #tl_stream_nodemap["StreamBufferHandlingMode"].value = "NewestOnly"
+    image_buffer = device.get_buffer()
+    device.requeue_buffer(image_buffer)
+    image_buffer = device.get_buffer()
+    
+    dmd.start_stop_sequence("stop")
+    
+    # Long Line to convert image to proper data format for DMD
+    nparray = np.ctypeslib.as_array(image_buffer.pdata,shape=(image_buffer.height, image_buffer.width, int(image_buffer.bits_per_pixel / 8))).reshape(image_buffer.height, image_buffer.width, int(image_buffer.bits_per_pixel / 8))
+
+
+    # Live Box Drawing Stuff for choosing Cells 
+    cv2.imwrite("Try.jpg", nparray)
+    display_img = cv2.imread("Try.jpg")
+    cv2.resizeWindow("Image", window_width, window_height)
+
+    # THis runs until ESCAPE Key Pressed 
+    while True:
+        cv2.imshow("Image", display_img)
+        if cv2.waitKey(10) == 27:
+            break
+    # DMD mask will be displayed, Must Click X button to Continue! 
+
+    # Close out of stream (no need to record while processing)
+    device.stop_stream()  
+    cv2.destroyAllWindows()
+    #system.destroy_device()
+
+
+    print("The box drawn has corners at: ",ix,iy,fx,fy)
+
+    diff_left = d_l
+    diff_top = d_t
+
+
+    # Convert Box Drawn with Values from calibratration step 
+    arr = convert_pic_to_DMD(ix,iy,fx,fy, diff_left,diff_top)
+
+
+
+    # Upload Pattern -> The function in this code has no triggers, it will just display the pattern requested 
+    Upload_Arr_to_DMD(arr, dmd)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ########################################################## Main Script
 #gui_pylon()
-
 """
 # Connect to Atlas10
 Atlas10 = create_device_from_serial_number("220600074")
@@ -343,8 +698,8 @@ set_Python1300_Slave(Python1300)
 # Connect to DMDs
 dmd1 = dlp6500.dlp6500win(debug=False, dmd_index = 0) #Blue
 dmd2 = dlp6500.dlp6500win(debug=False, dmd_index = 1) #Green
-
-
+#device = create_device_from_serial_number("220600074") #Blue
+#device = create_device_from_serial_number("224500525") #Red
 
 
 #dmd1 = dlp6500.dlp6500win(debug=False)  
@@ -356,14 +711,103 @@ dmd2 = dlp6500.dlp6500win(debug=False, dmd_index = 1) #Green
 # Connect to Arduino for Electrical Recording..
 #arduino = serial.Serial('COM8', 115200, timeout=.1)
 
+Upload_TI4_to_DMD(dmd1)
+
+
+
+#Upload_FB_to_DMD(dmd1)
+#Upload_FB_to_DMD(dmd2)
+
+
+
+#Upload_DD1_to_DMD(dmd1)
+#Upload_DD2_to_DMD(dmd1)
+#Upload_DD3_to_DMD(dmd1)
+
+def run_SIM(device, dmd):
+    pixel_format = PixelFormat.Mono8
+    # Get MMJ
+    bridge = Bridge()
+    mmc = bridge.get_core()
+
+    
+    iter = 0
+    while iter < 5:
+        # Pat 1
+        i = 1
+        print("pat1")
+        Upload_DD1_to_DMD(dmd)
+        time.sleep(3)
+        device.start_stream(1)
+        buffer = device.get_buffer()
+        converted = BufferFactory.convert(buffer, pixel_format)
+        writer = Writer()
+        writer.pattern = 'SIM_images/image_<count>' + str(iter) + str(i) + '.jpg'
+        writer.save(converted)
+        BufferFactory.destroy(converted)
+        device.requeue_buffer(buffer)
+        device.stop_stream()
+        
+        
+        # Pat 2
+        i = 2
+        print("pat2")
+        Upload_DD2_to_DMD(dmd)
+        time.sleep(3)
+        device.start_stream(1)
+        buffer = device.get_buffer()
+        converted = BufferFactory.convert(buffer, pixel_format)
+        writer = Writer()
+        writer.pattern = 'SIM_images/image_<count>' + str(iter) + str(i) + '.jpg'
+        writer.save(converted)
+        BufferFactory.destroy(converted)
+        device.requeue_buffer(buffer)    
+        device.stop_stream()
+ 
+        # Pat 3
+        i = 3
+        print("pat3")
+        Upload_DD3_to_DMD(dmd)
+        time.sleep(3)
+        device.start_stream(1)
+        buffer = device.get_buffer()
+        converted = BufferFactory.convert(buffer, pixel_format)
+        writer = Writer()
+        writer.pattern = 'SIM_images/image_<count>' + str(iter) + str(i) + '.jpg'
+        writer.save(converted)
+        BufferFactory.destroy(converted)
+        device.requeue_buffer(buffer)   
+        device.stop_stream()
+        
+        
+        
+        iter = iter + 1
+
+    print("DONE")
+    #Clean Up
+    device.stop_stream()
+
+    # Destroy Device
+    system.destroy_device(device)   
+    dmd.start_stop_sequence("stop") 
+
+
+#run_SIM(device,dmd1)
+
+#diff_left, diff_top = calibrate_TI(device, dmd2)
+#print("Calibration Complete")
+#User_Draws_TI(diff_left,diff_top, device, dmd2)
 
 
 
 
-Upload_FB_to_DMD(dmd1)
-Upload_FB_to_DMD(dmd2)
-#Upload_SIM3_to_DMD(dmd1)
-#Upload_SIM3_to_DMD(dmd2)
+
+#Upload_FB_to_DMD(dmd1)
+#Upload_FB_to_DMD(dmd2)
+
+
+
+
 
 
 
