@@ -119,6 +119,12 @@ def set_ROI_Atlas10(device, width, height, offset_X, offset_Y):
         offset_Y -= 1
     nodemap['OffsetY'].value = offset_Y
 
+def reset_Atlas10_Default(device):
+    device.nodemap['UserSetSelector'].value = 'Default'
+    device.nodemap['UserSetLoad'].execute()
+   
+    
+
 
 def reset_ROI_Atlas10(device):
     nodemap = device.nodemap
@@ -126,6 +132,10 @@ def reset_ROI_Atlas10(device):
     nodemap['OffsetY'].value = 0
     nodemap['Width'].value = nodemap['Width'].max
     nodemap['Height'].value = nodemap['Height'].max
+    
+def set_Gain_Auto(device):
+    nodemap = device.nodemap
+    nodemap['GainAuto'].value = "Continuous"
     
     
 def set_Cam_Trigs_Atlas10(device, exposure_Time):
@@ -169,6 +179,8 @@ def set_Cam_Defaults_Atlas10(device):
     #nodes['PixelFormat'].value = new_pixel_format
     return new_pixel_format, exposure_time_initial #Removed Device from Returns
 
+
+    
 # Lock Atlas Exposure
 def lock_Exposure_Atlas10(device):
     nodemap = device.nodemap
@@ -188,8 +200,35 @@ def set_Mode_Cont_Atlas10(device):
     nodes = nodemap.get_node(['AcquisitionMode'])
     nodes['AcquisitionMode'].value = "Continuous"
 
+def save_UserSet1_Atlas10(device):
+    nodemap = device.nodemap
+    user_set_selector_node = nodemap.get_node("UserSetSelector")
+    user_set_selector_node.value = "UserSet1"
+    nodemap.get_node("UserSetSave").execute()
+
+def save_UserSet2_Atlas10(device):
+    nodemap = device.nodemap
+    user_set_selector_node = nodemap.get_node("UserSetSelector")
+    user_set_selector_node.value = "UserSet2"
+    nodemap.get_node("UserSetSave").execute()
 
 
+def reload_UserSet1_Atlas10(device):
+    nodemap = device.nodemap
+    user_set_selector_node = nodemap.get_node("UserSetSelector")
+    user_set_selector_node.value = "UserSet1"
+    nodemap.get_node("UserSetLoad").execute()
+    
+def reload_UserSet2_Atlas10(device):
+    nodemap = device.nodemap
+    user_set_selector_node = nodemap.get_node("UserSetSelector")
+    user_set_selector_node.value = "UserSet2"
+    nodemap.get_node("UserSetLoad").execute()  
+
+
+    
+    
+    
     
     
 # TODO -> Add MultiThread Stuff !!!!!!
@@ -311,22 +350,22 @@ def Upload_TI8_to_DMD(dmd):
     
 
 
-def set_DMD_SIM(exposure_time_cam):
-    
-    # import tif file into numpy array 
-    pats = io.imread('patterns//OS_NEIL_PATS_Extended.bmp')                                         #!!!!!!!! EXTRA for Z slices! 
-    #pats[np.where(pats!=0)] = 1
+def set_DMD_SIM(dmd,exposure_time_cam):
+    dmd.start_stop_sequence("stop")
+    # import tif file into numpy array (BMP NOW!!???)
+    pats = io.imread('patterns//DD20_Stack.tif')                                         #!!!!!!!! EXTRA for Z slices! 
+    pats[np.where(pats!=0)] = 1
     # Get DMD & Upload Pats
-    dmd = dlp6500.dlp6500win(debug=False, index = 1)
+    #dmd = dlp6500.dlp6500win(debug=False, index = 1)
     exposure_t = int(exposure_time_cam - 250)
     dark_t = 0
     triggered = True
-    img_inds, bit_inds = dmd.upload_pattern_sequence(pats, exposure_t, 0, triggered, clear_pattern_after_trigger = True, bit_depth = 1, num_repeats = 0)
+    img_inds, bit_inds = dmd.upload_pattern_sequence(pats, exposure_t, 0, triggered, clear_pattern_after_trigger = False, bit_depth = 1, num_repeats = 0)
     print("Upload Complete")
-    dmd.set_pattern_sequence(img_inds, bit_inds, exposure_t, dark_t, triggered, clear_pattern_after_trigger= True, bit_depth=1, num_repeats=0, mode='on-the-fly')
+    dmd.set_pattern_sequence(img_inds, bit_inds, exposure_t, dark_t, triggered, clear_pattern_after_trigger= False, bit_depth=1, num_repeats=0, mode='on-the-fly')
     dmd.start_stop_sequence("start")
     print("DMD IS INITIALIZED")
-    return dmd
+    #return dmd
 
 
 ###################################################### TriggerScope-DAQ Helpers
@@ -345,11 +384,32 @@ def set_MM_DMD_Trigs():
     mmc.set_property("TS_DAC02", "State","1")
     mmc.set_property("TS_DAC02", "Volts", str(3.3))
 
+def set_MM_DMD_Trigs_BLUE():
+    
+    # Connect uManager
+    bridge = Bridge()
+    mmc = bridge.get_core()
+    
+    #Trig1
+    mmc.set_property("TS_DAC13", "Blanking","On") #G/B
+    mmc.set_property("TS_DAC13", "State","1")
+    #mmc.set_property("TS_DAC01", "Volts", str(3.3))
+
+    #Trig2
+    #mmc.set_property("TS_DAC02", "Blanking","Off") #R/B
+    mmc.set_property("TS_DAC16", "State","1")
+    mmc.set_property("TS_DAC16", "Volts", str(3.3))
+
+
+
+
 
 def turn_Off__MM_Trigs():
     mmc = Core()
     mmc.set_property("TS_DAC01", "State","0")
     mmc.set_property("TS_DAC02", "State","0")
+    mmc.set_property("TS_TTL13", "State","0")
+    mmc.set_property("TS_DAC13", "State","0")
 
 
 
@@ -589,6 +649,33 @@ def calibrate_TI(device, dmd):
 
 
 #def match_Offsets(offset_X, offset_Y, R_W, R_H, B_W, B_H
+def snap_Image(device):
+    global ix, iy, drawing, display_img, fx, fy
+    device.start_stream()
+    image_buffer = device.get_buffer()
+    nparray = np.ctypeslib.as_array(image_buffer.pdata,shape=(image_buffer.height, image_buffer.width, int(image_buffer.bits_per_pixel / 8))).reshape(image_buffer.height, image_buffer.width, int(image_buffer.bits_per_pixel / 8))
+    # Live Box Drawing Stuff for choosing Cells 
+    cv2.namedWindow("Image", cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback("Image", draw_reactangle_with_drag)
+    cv2.imwrite("Try.jpg", nparray)
+    display_img = cv2.imread("Try.jpg")
+    cv2.resizeWindow("Image", window_width, window_height)
+    key = -1
+    # THis runs until ESCAPE Key Pressed 
+    while True:
+        cv2.imshow("Image", display_img)
+        if cv2.waitKey(10) == 27:
+            break
+    # DMD mask will be displayed, Must Click X button to Continue! 
+
+    # Close out of stream (no need to record while processing)
+    device.stop_stream()  
+    cv2.destroyAllWindows()   
+    return ix, iy, fx, fy
+
+    
+
+
 
 
 def User_Draws_TI(d_l,d_t, device, dmd):
@@ -608,7 +695,7 @@ def User_Draws_TI(d_l,d_t, device, dmd):
     
     #dmd = dlp6500.dlp6500win(debug=False)
     #Upload_FB_to_DMD(dmd)
-    dmd.start_stop_sequence("start")
+    #dmd.start_stop_sequence("start")
 
     # Starting Stream and Grabbing IMage 
     device.start_stream()
@@ -618,7 +705,7 @@ def User_Draws_TI(d_l,d_t, device, dmd):
     device.requeue_buffer(image_buffer)
     image_buffer = device.get_buffer()
     
-    dmd.start_stop_sequence("stop")
+    #dmd.start_stop_sequence("stop")
     
     # Long Line to convert image to proper data format for DMD
     nparray = np.ctypeslib.as_array(image_buffer.pdata,shape=(image_buffer.height, image_buffer.width, int(image_buffer.bits_per_pixel / 8))).reshape(image_buffer.height, image_buffer.width, int(image_buffer.bits_per_pixel / 8))
@@ -700,7 +787,12 @@ dmd1 = dlp6500.dlp6500win(debug=False, dmd_index = 0) #Blue
 dmd2 = dlp6500.dlp6500win(debug=False, dmd_index = 1) #Green
 #device = create_device_from_serial_number("220600074") #Blue
 #device = create_device_from_serial_number("224500525") #Red
+#set_MM_DMD_Trigs()
 
+
+set_DMD_SIM(dmd1,700)
+
+set_DMD_SIM(dmd2,700)
 
 #dmd1 = dlp6500.dlp6500win(debug=False)  
 #dmd2 = dlp6500.dlp6500win2(debug=False) 
@@ -711,7 +803,7 @@ dmd2 = dlp6500.dlp6500win(debug=False, dmd_index = 1) #Green
 # Connect to Arduino for Electrical Recording..
 #arduino = serial.Serial('COM8', 115200, timeout=.1)
 
-Upload_TI4_to_DMD(dmd1)
+#Upload_TI8_to_DMD(dmd1)
 
 
 
@@ -801,9 +893,6 @@ def run_SIM(device, dmd):
 
 
 
-
-#Upload_FB_to_DMD(dmd1)
-#Upload_FB_to_DMD(dmd2)
 
 
 
