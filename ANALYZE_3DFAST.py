@@ -9,7 +9,7 @@ import numpy as np
 
     
 
-def load_Data(fname,ROI_Num):
+def load_Data_From_1ROI(fname,ROI_Num):
     
     #TODO ADD SNR
     
@@ -29,8 +29,9 @@ def spike_Template(dFF,spike_times,Fs):
     #TODO, Deal with rapid spiking
     # CASE1 - no spikes 20 timepoints before/after
     # Case2 there are spikes within the plotting window
-    #   -REMOVE BEFORE AVERGAING
+   
     
+    #TODO2, throw away 
     
     template = np.zeros(41)
     num_Useable_Spikes = 0 
@@ -58,6 +59,8 @@ def visualize_Data(dFF, spike_Times, Fs, subs):
     # Plot PSTH with stimulation times 
     
     
+def compare_Data(spike_Template_Cam1, spike_Template_Cam2, dff1, dff2, spike_times1, spike_times2, ...... )
     
+    # Compare times of spikes from each camera, compare spike templates from each camera, 
     
-    
+    return percent_Similiarity
